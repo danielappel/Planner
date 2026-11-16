@@ -1,0 +1,1865 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Recovery Bell Schedule Planner</title>
+    <!-- Load Google Font: Inter -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <!-- Load Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Inter', 'system-ui', '-apple-system', 'sans-serif'],
+                    },
+                    colors: {
+                        sage: {
+                            50: '#f4f7f5',
+                            100: '#e3ebe6',
+                            200: '#c6d7cd',
+                            300: '#9ebbae',
+                            400: '#749b89',
+                            500: '#557f6d',
+                            600: '#426557',
+                            700: '#365247',
+                            800: '#2d433b',
+                            900: '#263832',
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        /* Custom Checkbox Styling for Tactile, Accessible Check-off */
+        .recovery-checkbox {
+            appearance: none;
+            -webkit-appearance: none;
+            width: 1.3rem;
+            height: 1.3rem;
+            border: 2px solid #9ebbae;
+            border-radius: 0.42rem;
+            background-color: #ffffff;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.16s ease;
+            flex-shrink: 0;
+        }
+        .recovery-checkbox:hover {
+            border-color: #557f6d;
+            background-color: #f4f7f5;
+        }
+        .recovery-checkbox:focus-visible {
+            outline: 2px solid #557f6d;
+            outline-offset: 2px;
+        }
+        .recovery-checkbox:checked {
+            background-color: #557f6d;
+            border-color: #557f6d;
+        }
+        .recovery-checkbox:checked::after {
+            content: '';
+            width: 0.36rem;
+            height: 0.68rem;
+            border: solid white;
+            border-width: 0 2.2px 2.2px 0;
+            transform: rotate(45deg) translate(-1px, -1px);
+        }
+
+        /* Drag and Drop Visual Feedback */
+        .task-item-dragging {
+            opacity: 0.45;
+            background-color: #f4f7f5 !important;
+        }
+        .task-drop-before {
+            box-shadow: inset 0 2px 0 0 #557f6d !important;
+        }
+        .task-drop-after {
+            box-shadow: inset 0 -2px 0 0 #557f6d !important;
+        }
+        .period-drop-highlight {
+            border-color: #557f6d !important;
+            background-color: #f4f7f5 !important;
+        }
+
+        /* Compact 1-2 Page Print Layout */
+        @media print {
+            @page {
+                size: letter portrait;
+                margin: 0.35in;
+            }
+            html, body {
+                background: #ffffff !important;
+                color: #0f172a !important;
+                font-size: 9.5pt !important;
+                line-height: 1.25 !important;
+                margin: 0 !important;
+                padding: 0 !important;
+            }
+            .no-print {
+                display: none !important;
+            }
+            .print-only {
+                display: block !important;
+            }
+            main {
+                max-width: 100% !important;
+                padding: 0 !important;
+                margin: 0 !important;
+            }
+            #schedule-container {
+                display: grid !important;
+                grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+                gap: 0.45rem !important;
+            }
+            .period-card {
+                box-shadow: none !important;
+                border: 1px solid #cbd5e1 !important;
+                border-radius: 0.45rem !important;
+                break-inside: avoid !important;
+                page-break-inside: avoid !important;
+                margin: 0 !important;
+            }
+            .period-header {
+                padding: 0.3rem 0.55rem !important;
+                background: #f8fafc !important;
+                border-bottom: 1px solid #e2e8f0 !important;
+            }
+            .period-header h2 {
+                font-size: 9.5pt !important;
+            }
+            .period-header span {
+                font-size: 8pt !important;
+                padding: 0.05rem 0.35rem !important;
+            }
+            .task-list > li {
+                padding: 0.22rem 0.55rem !important;
+                gap: 0.4rem !important;
+            }
+            .task-label {
+                font-size: 8.5pt !important;
+                line-height: 1.22 !important;
+            }
+            .cat-badge {
+                font-size: 7pt !important;
+                padding: 0.05rem 0.35rem !important;
+            }
+            .recovery-checkbox {
+                width: 0.85rem !important;
+                height: 0.85rem !important;
+                border-width: 1.5px !important;
+                border-radius: 0.2rem !important;
+                margin-top: 0.1rem !important;
+            }
+            .recovery-checkbox:checked::after {
+                width: 0.24rem !important;
+                height: 0.48rem !important;
+                border-width: 0 1.6px 1.6px 0 !important;
+            }
+        }
+    </style>
+</head>
+<body class="bg-slate-50 text-slate-800 antialiased min-h-screen flex flex-col">
+
+    <!-- Sticky Top Header & Pacing Timer Bar -->
+    <header class="sticky top-0 z-30 bg-white/95 backdrop-blur border-b border-slate-200 shadow-sm no-print">
+        <div class="max-w-6xl mx-auto px-4 sm:px-6 py-3">
+            <div class="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3">
+                <!-- Title & Subtitle -->
+                <div>
+                    <div class="flex items-center gap-2.5 flex-wrap">
+                        <span class="inline-flex items-center justify-center w-8 h-8 rounded-xl bg-sage-100 text-sage-700 font-bold text-sm">
+                            PT
+                        </span>
+                        <h1 class="text-lg sm:text-xl font-bold text-slate-900 tracking-tight">Recovery Bell Schedule Planner</h1>
+                        <span id="active-badge-summary" class="text-xs font-semibold px-2.5 py-0.5 rounded-full bg-sage-100 text-sage-800">
+                            Monday Schedule
+                        </span>
+                    </div>
+                    <p class="text-xs text-slate-500 mt-0.5">10-minute paced blocks • Pin tasks to keep them, customize categories &amp; pool options</p>
+                </div>
+
+                <!-- Built-in Pacing Timer -->
+                <div class="flex flex-wrap items-center gap-2 bg-slate-100/90 border border-slate-200/80 rounded-2xl px-3 py-1.5 self-start lg:self-auto">
+                    <div class="flex items-center gap-2 pr-2 border-r border-slate-200">
+                        <span class="w-2 h-2 rounded-full bg-sage-500 animate-pulse" id="timer-dot"></span>
+                        <span class="text-xs font-medium text-slate-500 hidden sm:inline">Pacing Timer:</span>
+                        <span id="timer-display" class="font-mono text-base font-bold text-slate-800 tabular-nums">10:00</span>
+                    </div>
+                    <div class="flex items-center gap-1">
+                        <button type="button" onclick="setTimerMinutes(10)" class="px-2 py-1 text-xs font-medium rounded-lg bg-white hover:bg-sage-50 text-slate-700 border border-slate-200 transition">10m</button>
+                        <button type="button" onclick="setTimerMinutes(15)" class="px-2 py-1 text-xs font-medium rounded-lg bg-white hover:bg-sage-50 text-slate-700 border border-slate-200 transition">15m</button>
+                        <button type="button" onclick="setTimerMinutes(20)" class="px-2 py-1 text-xs font-medium rounded-lg bg-white hover:bg-sage-50 text-slate-700 border border-slate-200 transition">20m</button>
+                    </div>
+                    <div class="flex items-center gap-1 pl-1">
+                        <button type="button" id="timer-toggle-btn" onclick="toggleTimer()" class="px-3 py-1 text-xs font-semibold rounded-lg bg-sage-600 hover:bg-sage-700 text-white shadow-sm transition">
+                            Start
+                        </button>
+                        <button type="button" onclick="resetTimer()" class="px-2 py-1 text-xs font-medium rounded-lg bg-white hover:bg-slate-200/70 text-slate-600 border border-slate-200 transition" title="Reset Timer">
+                            Reset
+                        </button>
+                        <button type="button" id="sound-toggle-btn" onclick="toggleSound()" class="p-1.5 text-xs rounded-lg bg-white hover:bg-slate-200/70 text-slate-600 border border-slate-200 transition" title="Toggle Chime Sound">
+                            <svg id="sound-on-icon" class="w-3.5 h-3.5 text-sage-600" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M15.536 8.464a5 5 0 010 7.072m2.828-9.9a9 9 0 010 12.728M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z"/>
+                            </svg>
+                            <svg id="sound-off-icon" class="w-3.5 h-3.5 text-slate-400 hidden" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15zM17 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2"/>
+                            </svg>
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Schedule Type, Day of Week & Controls -->
+            <div class="mt-3 pt-2.5 border-t border-slate-100 flex flex-col md:flex-row md:items-center justify-between gap-2.5">
+                <!-- Bell Schedule Selector (Monday / A Day / B Day) -->
+                <div class="flex flex-wrap items-center gap-2">
+                    <span class="text-xs font-semibold uppercase tracking-wider text-slate-400">Bell Schedule:</span>
+                    <div class="inline-flex rounded-xl bg-slate-100 p-1 border border-slate-200/80" role="group">
+                        <button type="button" onclick="selectScheduleType('monday')" id="sched-btn-monday" class="sched-btn px-3 py-1 rounded-lg text-xs font-semibold transition">
+                            Monday
+                        </button>
+                        <button type="button" onclick="selectScheduleType('aday')" id="sched-btn-aday" class="sched-btn px-3 py-1 rounded-lg text-xs font-semibold transition">
+                            A Day
+                        </button>
+                        <button type="button" onclick="selectScheduleType('bday')" id="sched-btn-bday" class="sched-btn px-3 py-1 rounded-lg text-xs font-semibold transition">
+                            B Day
+                        </button>
+                    </div>
+
+                    <!-- After School Toggle -->
+                    <label class="inline-flex items-center gap-1.5 text-xs font-medium text-slate-600 bg-slate-50 border border-slate-200 rounded-xl px-2.5 py-1.5 cursor-pointer hover:bg-slate-100 transition select-none">
+                        <input type="checkbox" id="after-school-toggle" onchange="toggleAfterSchool()" class="rounded border-slate-300 text-sage-600 focus:ring-sage-500">
+                        <span>Include After School (3:00–9:00)</span>
+                    </label>
+                </div>
+
+                <!-- Day-of-Week Activity Rotation & Pool Drawer Button -->
+                <div class="flex flex-wrap items-center gap-1.5">
+                    <span class="text-xs font-semibold uppercase tracking-wider text-slate-400 mr-1">Day Ideas:</span>
+                    <div class="inline-flex rounded-xl bg-slate-100 p-1 border border-slate-200/80">
+                        <button type="button" onclick="selectDayTheme('Mon')" id="day-btn-Mon" class="day-btn px-2 py-0.5 rounded-lg text-xs font-semibold transition">Mon</button>
+                        <button type="button" onclick="selectDayTheme('Tue')" id="day-btn-Tue" class="day-btn px-2 py-0.5 rounded-lg text-xs font-semibold transition">Tue</button>
+                        <button type="button" onclick="selectDayTheme('Wed')" id="day-btn-Wed" class="day-btn px-2 py-0.5 rounded-lg text-xs font-semibold transition">Wed</button>
+                        <button type="button" onclick="selectDayTheme('Thu')" id="day-btn-Thu" class="day-btn px-2 py-0.5 rounded-lg text-xs font-semibold transition">Thu</button>
+                        <button type="button" onclick="selectDayTheme('Fri')" id="day-btn-Fri" class="day-btn px-2 py-0.5 rounded-lg text-xs font-semibold transition">Fri</button>
+                    </div>
+                    <button type="button" onclick="shuffleUnpinned()" class="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-xl text-xs font-semibold bg-amber-50 text-amber-800 border border-amber-200 hover:bg-amber-100 transition" title="Refill unpinned tasks using your checked pool options">
+                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
+                        </svg>
+                        Shuffle Unpinned
+                    </button>
+                    <button type="button" onclick="togglePoolDrawer()" id="pool-drawer-btn" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold bg-sage-600 text-white hover:bg-sage-700 shadow-sm transition">
+                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4"/>
+                        </svg>
+                        Customize Pool &amp; Categories
+                    </button>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- Collapsible Activity Pool & Categories Drawer -->
+    <section id="pool-drawer" class="hidden bg-white border-b border-slate-200 shadow-inner no-print">
+        <div class="max-w-6xl mx-auto px-4 sm:px-6 py-5">
+            <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 border-b border-slate-200">
+                <div>
+                    <h2 class="text-base font-bold text-slate-900">Activity Pool &amp; Category Manager</h2>
+                    <p class="text-xs text-slate-500 mt-0.5">Create custom categories, check/uncheck which options can be selected, or type multiple new options below.</p>
+                </div>
+                <div class="flex flex-wrap items-center gap-2">
+                    <button type="button" onclick="shuffleUnpinned()" class="px-3 py-1.5 rounded-xl text-xs font-semibold bg-sage-600 text-white hover:bg-sage-700 shadow-sm transition">
+                        Refill Unpinned Slots from Checked Pool
+                    </button>
+                    <button type="button" onclick="togglePoolDrawer()" class="px-3 py-1.5 rounded-xl text-xs font-semibold bg-slate-100 text-slate-700 hover:bg-slate-200 transition">
+                        Close Panel
+                    </button>
+                </div>
+            </div>
+
+            <!-- Custom Categories Manager -->
+            <div class="mt-4 bg-slate-50 rounded-2xl p-3.5 border border-slate-200">
+                <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-3">
+                    <div>
+                        <span class="text-xs font-bold uppercase tracking-wider text-slate-500 block">Categories</span>
+                        <div id="category-pills-container" class="flex flex-wrap items-center gap-1.5 mt-1.5">
+                            <!-- Dynamically populated category pills -->
+                        </div>
+                    </div>
+                    <form onsubmit="handleAddCategory(event)" class="flex flex-wrap items-center gap-2 shrink-0">
+                        <input type="text" id="new-category-name" placeholder="New category (e.g., Grading, Hydration)" class="text-xs bg-white border border-slate-300 rounded-xl px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-sage-500 w-52">
+                        <select id="new-category-theme" class="text-xs bg-white border border-slate-300 rounded-xl px-2.5 py-1.5 focus:outline-none focus:ring-2 focus:ring-sage-500">
+                            <option value="purple">Purple Badge</option>
+                            <option value="rose">Rose Badge</option>
+                            <option value="sky">Sky Blue Badge</option>
+                            <option value="emerald">Emerald Badge</option>
+                            <option value="orange">Orange Badge</option>
+                            <option value="slate">Slate Badge</option>
+                        </select>
+                        <button type="submit" class="px-3 py-1.5 rounded-xl text-xs font-semibold bg-slate-800 text-white hover:bg-slate-900 transition">
+                            + Add Category
+                        </button>
+                    </form>
+                </div>
+            </div>
+
+            <!-- Add Custom Options to Pool Form -->
+            <form onsubmit="handleAddPoolOption(event)" class="mt-3 bg-sage-50/70 rounded-2xl p-3.5 border border-sage-200/80">
+                <div class="flex flex-col md:flex-row gap-2.5">
+                    <select id="pool-new-cat" class="text-xs font-semibold bg-white border border-slate-300 rounded-xl px-3 py-2 focus:outline-none focus:ring-2 focus:ring-sage-500">
+                        <!-- Dynamically populated category options -->
+                    </select>
+                    <div class="flex items-center gap-1.5 bg-white border border-slate-300 rounded-xl px-2.5 py-1.5">
+                        <input type="number" id="pool-new-mins" value="10" min="5" max="60" step="5" class="w-12 text-xs font-bold text-center focus:outline-none">
+                        <span class="text-xs text-slate-500">min</span>
+                    </div>
+                    <input type="text" id="pool-new-text" placeholder="Type one or more options separated by commas or semicolons..." class="flex-1 text-xs bg-white border border-slate-300 rounded-xl px-3 py-2 focus:outline-none focus:ring-2 focus:ring-sage-500">
+                    <button type="submit" class="px-4 py-2 rounded-xl text-xs font-semibold bg-sage-600 text-white hover:bg-sage-700 shadow-sm transition shrink-0">
+                        + Add to Pool
+                    </button>
+                </div>
+            </form>
+
+            <!-- Category Columns with Checkboxes for Selectable Pool Options -->
+            <div id="pool-columns-grid" class="mt-4 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                <!-- Populated dynamically via JS -->
+            </div>
+        </div>
+    </section>
+
+    <!-- Print-Only Compact Header -->
+    <div class="hidden print-only mb-2 pb-1.5 border-b border-slate-300">
+        <div class="flex items-baseline justify-between">
+            <h1 id="print-title" class="text-base font-bold text-slate-900">Recovery Bell Schedule — Monday</h1>
+            <span id="print-subtitle" class="text-xs text-slate-600">10-Minute Paced Blocks • PT &amp; Lesson Prep</span>
+        </div>
+    </div>
+
+    <!-- Main Content Container -->
+    <main class="flex-1 max-w-6xl w-full mx-auto px-4 sm:px-6 py-5 space-y-5">
+
+        <!-- Progress & Filter Bar (Hidden on Print) -->
+        <section class="bg-white rounded-2xl border border-slate-200/90 shadow-sm p-4 no-print">
+            <div class="flex flex-col md:flex-row md:items-center justify-between gap-3">
+                <!-- Progress Bar -->
+                <div class="flex-1">
+                    <div class="flex items-center justify-between text-xs mb-1.5">
+                        <span class="font-semibold text-slate-700">Daily Completion Progress</span>
+                        <span id="progress-text" class="font-bold text-sage-700">0 of 0 tasks (0%)</span>
+                    </div>
+                    <div class="w-full h-2.5 bg-slate-100 rounded-full overflow-hidden border border-slate-200/60">
+                        <div id="progress-bar" class="h-full bg-sage-500 rounded-full transition-all duration-300" style="width: 0%"></div>
+                    </div>
+                </div>
+
+                <!-- Action Buttons -->
+                <div class="flex flex-wrap items-center gap-2 shrink-0">
+                    <button type="button" onclick="printBlankSchedule()" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold bg-white text-slate-700 border border-slate-300 hover:bg-slate-50 shadow-xs transition" title="Print a clean blank template with empty checkbox lines for writing in your own tasks">
+                        <svg class="w-3.5 h-3.5 text-slate-500" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+                        </svg>
+                        Print Blank Sheet
+                    </button>
+                    <button type="button" onclick="window.print()" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold bg-slate-800 text-white hover:bg-slate-900 shadow-sm transition">
+                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"/>
+                        </svg>
+                        Print Filled Sheet
+                    </button>
+                    <button type="button" onclick="openResetModal()" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold bg-white text-slate-600 border border-slate-200 hover:bg-rose-50 hover:text-rose-700 hover:border-rose-200 transition">
+                        Reset Checks / Day
+                    </button>
+                </div>
+            </div>
+
+            <!-- Category Filter Pills -->
+            <div class="mt-3 pt-2.5 border-t border-slate-100 flex flex-wrap items-center gap-1.5">
+                <span class="text-xs font-semibold text-slate-400 mr-1">Filter:</span>
+                <div id="filter-pills-container" class="flex flex-wrap items-center gap-1.5">
+                    <!-- Dynamically populated filter buttons -->
+                </div>
+            </div>
+        </section>
+
+        <!-- Schedule Period Cards Grid -->
+        <div id="schedule-container" class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <!-- Period cards rendered dynamically -->
+        </div>
+    </main>
+
+    <!-- Undo Toast Notification -->
+    <div id="undo-toast" class="fixed bottom-5 right-5 z-50 hidden items-center gap-3 bg-slate-900 text-white text-xs font-medium px-4 py-3 rounded-2xl shadow-lg border border-slate-700 no-print">
+        <span id="undo-toast-msg">Task removed.</span>
+        <button type="button" onclick="undoLastAction()" class="px-2.5 py-1 rounded-lg bg-sage-500 hover:bg-sage-400 text-white font-bold transition">
+            Undo
+        </button>
+    </div>
+
+    <!-- Custom Confirmation Modal -->
+    <div id="reset-modal" class="fixed inset-0 z-50 hidden items-center justify-center bg-slate-900/40 backdrop-blur-xs p-4 no-print">
+        <div class="bg-white rounded-2xl max-w-md w-full p-5 shadow-xl border border-slate-200">
+            <h3 class="text-base font-bold text-slate-900">Reset Schedule Options</h3>
+            <p class="text-xs text-slate-600 mt-1.5 leading-relaxed">
+                Choose whether to clear today's completed checkmarks or restore default tasks for the current schedule.
+            </p>
+            <div class="mt-4 flex flex-col sm:flex-row justify-end gap-2">
+                <button type="button" onclick="closeResetModal()" class="px-3.5 py-2 rounded-xl text-xs font-semibold bg-slate-100 text-slate-700 hover:bg-slate-200 transition">
+                    Cancel
+                </button>
+                <button type="button" onclick="clearCheckmarksOnly()" class="px-3.5 py-2 rounded-xl text-xs font-semibold bg-amber-50 text-amber-800 border border-amber-200 hover:bg-amber-100 transition">
+                    Clear Checkmarks Only
+                </button>
+                <button type="button" onclick="resetCurrentScheduleDefaults()" class="px-3.5 py-2 rounded-xl text-xs font-semibold bg-rose-600 text-white hover:bg-rose-700 transition">
+                    Restore Default Tasks
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        /* ==========================================================================
+           1. DATA DEFINITIONS & COLOR THEMES
+           ========================================================================== */
+        const STORAGE_KEY = 'recovery_bell_schedule_v4';
+
+        const THEME_STYLES = {
+            teal: {
+                badge: 'bg-teal-50 text-teal-800 border-teal-200',
+                pillActive: 'bg-teal-600 text-white border-teal-600',
+                pillIdle: 'bg-white text-teal-800 border-teal-200 hover:bg-teal-50',
+                cardHeader: 'bg-teal-50/70 border-teal-200 text-teal-900',
+                accent: 'text-teal-700'
+            },
+            amber: {
+                badge: 'bg-amber-50 text-amber-800 border-amber-200',
+                pillActive: 'bg-amber-600 text-white border-amber-600',
+                pillIdle: 'bg-white text-amber-800 border-amber-200 hover:bg-amber-50',
+                cardHeader: 'bg-amber-50/70 border-amber-200 text-amber-900',
+                accent: 'text-amber-700'
+            },
+            indigo: {
+                badge: 'bg-indigo-50 text-indigo-800 border-indigo-200',
+                pillActive: 'bg-indigo-600 text-white border-indigo-600',
+                pillIdle: 'bg-white text-indigo-800 border-indigo-200 hover:bg-indigo-50',
+                cardHeader: 'bg-indigo-50/70 border-indigo-200 text-indigo-900',
+                accent: 'text-indigo-700'
+            },
+            purple: {
+                badge: 'bg-purple-50 text-purple-800 border-purple-200',
+                pillActive: 'bg-purple-600 text-white border-purple-600',
+                pillIdle: 'bg-white text-purple-800 border-purple-200 hover:bg-purple-50',
+                cardHeader: 'bg-purple-50/70 border-purple-200 text-purple-900',
+                accent: 'text-purple-700'
+            },
+            rose: {
+                badge: 'bg-rose-50 text-rose-800 border-rose-200',
+                pillActive: 'bg-rose-600 text-white border-rose-600',
+                pillIdle: 'bg-white text-rose-800 border-rose-200 hover:bg-rose-50',
+                cardHeader: 'bg-rose-50/70 border-rose-200 text-rose-900',
+                accent: 'text-rose-700'
+            },
+            sky: {
+                badge: 'bg-sky-50 text-sky-800 border-sky-200',
+                pillActive: 'bg-sky-600 text-white border-sky-600',
+                pillIdle: 'bg-white text-sky-800 border-sky-200 hover:bg-sky-50',
+                cardHeader: 'bg-sky-50/70 border-sky-200 text-sky-900',
+                accent: 'text-sky-700'
+            },
+            emerald: {
+                badge: 'bg-emerald-50 text-emerald-800 border-emerald-200',
+                pillActive: 'bg-emerald-600 text-white border-emerald-600',
+                pillIdle: 'bg-white text-emerald-800 border-emerald-200 hover:bg-emerald-50',
+                cardHeader: 'bg-emerald-50/70 border-emerald-200 text-emerald-900',
+                accent: 'text-emerald-700'
+            },
+            orange: {
+                badge: 'bg-orange-50 text-orange-800 border-orange-200',
+                pillActive: 'bg-orange-600 text-white border-orange-600',
+                pillIdle: 'bg-white text-orange-800 border-orange-200 hover:bg-orange-50',
+                cardHeader: 'bg-orange-50/70 border-orange-200 text-orange-900',
+                accent: 'text-orange-700'
+            },
+            slate: {
+                badge: 'bg-slate-100 text-slate-800 border-slate-300',
+                pillActive: 'bg-slate-700 text-white border-slate-700',
+                pillIdle: 'bg-white text-slate-800 border-slate-300 hover:bg-slate-100',
+                cardHeader: 'bg-slate-100 border-slate-300 text-slate-900',
+                accent: 'text-slate-700'
+            }
+        };
+
+        const DEFAULT_CATEGORIES = [
+            { id: 'pt', label: 'PT & Mobility', shortLabel: 'PT', theme: 'teal', builtIn: true },
+            { id: 'prep', label: 'Lesson Prep', shortLabel: 'Lesson Prep', theme: 'amber', builtIn: true },
+            { id: 'rest', label: 'Rest & Wellness', shortLabel: 'Rest / Break', theme: 'indigo', builtIn: true },
+            { id: 'meditation', label: 'Meditation & CBT', shortLabel: 'Meditation / CBT', theme: 'emerald', builtIn: true },
+            { id: 'fun', label: 'Fun Ideas', shortLabel: 'Fun Ideas', theme: 'purple', builtIn: true },
+            { id: 'outings', label: 'Fun Outings', shortLabel: 'Fun Outings', theme: 'rose', builtIn: true }
+        ];
+
+        const BELL_SCHEDULES = {
+            monday: {
+                name: 'Monday Schedule',
+                periods: [
+                    { id: 'm-prep', title: 'Morning Prep & Gentle Start', time: '7:00 - 8:15', totalMinutes: 75, kind: 'prep' },
+                    { id: 'm-p1', title: '1st Period', time: '8:15 - 9:00', totalMinutes: 45, kind: 'class' },
+                    { id: 'm-p2', title: '2nd Period', time: '9:07 - 9:52', totalMinutes: 45, kind: 'class' },
+                    { id: 'm-brk', title: 'Break', time: '9:52 - 10:12', totalMinutes: 20, kind: 'break' },
+                    { id: 'm-p3', title: '3rd Period', time: '10:12 - 10:57', totalMinutes: 45, kind: 'class' },
+                    { id: 'm-p4', title: '4th Period', time: '11:04 - 11:49', totalMinutes: 45, kind: 'class' },
+                    { id: 'm-lun', title: 'Lunch', time: '11:49 - 12:30', totalMinutes: 41, kind: 'lunch' },
+                    { id: 'm-p5', title: '5th Period', time: '12:30 - 1:15', totalMinutes: 45, kind: 'class' },
+                    { id: 'm-p6', title: '6th Period', time: '1:22 - 2:07', totalMinutes: 45, kind: 'class' },
+                    { id: 'm-p7', title: '7th Period', time: '2:15 - 3:00', totalMinutes: 45, kind: 'class' }
+                ]
+            },
+            aday: {
+                name: 'A Day Schedule',
+                periods: [
+                    { id: 'a-prep', title: 'Morning Prep & Gentle Start', time: '7:00 - 8:15', totalMinutes: 75, kind: 'prep' },
+                    { id: 'a-p1', title: '1st Period (Block)', time: '8:15 - 9:35', totalMinutes: 80, kind: 'block' },
+                    { id: 'a-brk', title: 'Break', time: '9:35 - 9:55', totalMinutes: 20, kind: 'break' },
+                    { id: 'a-p2', title: '2nd Period (Block)', time: '9:55 - 11:20', totalMinutes: 85, kind: 'block' },
+                    { id: 'a-lun', title: 'Lunch', time: '11:20 - 12:00', totalMinutes: 40, kind: 'lunch' },
+                    { id: 'a-p3', title: '3rd Period (Block)', time: '12:00 - 1:20', totalMinutes: 80, kind: 'block' },
+                    { id: 'a-p7', title: '7th Period (Block)', time: '1:30 - 2:50', totalMinutes: 80, kind: 'block' }
+                ]
+            },
+            bday: {
+                name: 'B Day Schedule',
+                periods: [
+                    { id: 'b-prep', title: 'Morning Prep & Gentle Start', time: '7:00 - 8:15', totalMinutes: 75, kind: 'prep' },
+                    { id: 'b-p4', title: '4th Period (Block)', time: '8:15 - 9:35', totalMinutes: 80, kind: 'block' },
+                    { id: 'b-brk', title: 'Break', time: '9:35 - 9:55', totalMinutes: 20, kind: 'break' },
+                    { id: 'b-p5', title: '5th Period (Block)', time: '9:55 - 11:15', totalMinutes: 80, kind: 'block' },
+                    { id: 'b-lun', title: 'Lunch & House Time', time: '11:20 - 12:20', totalMinutes: 60, kind: 'lunch' },
+                    { id: 'b-p6', title: '6th Period (Block)', time: '12:20 - 1:40', totalMinutes: 80, kind: 'block' },
+                    { id: 'b-aca', title: 'Academic Time', time: '1:40 - 2:30', totalMinutes: 50, kind: 'class' }
+                ]
+            }
+        };
+
+        const AFTER_SCHOOL_PERIODS = [
+            { id: 'as-3', title: 'After School • Transition', time: '3:00 - 4:00', totalMinutes: 60, kind: 'after' },
+            { id: 'as-4', title: 'After School • Afternoon PT & Rest', time: '4:00 - 5:00', totalMinutes: 60, kind: 'after' },
+            { id: 'as-5', title: 'After School • Dinner Prep & Nutrition', time: '5:00 - 6:00', totalMinutes: 60, kind: 'after' },
+            { id: 'as-6', title: 'After School • Light Mobility & Unwind', time: '6:00 - 7:00', totalMinutes: 60, kind: 'after' },
+            { id: 'as-7', title: 'After School • Evening Ice / Elevation', time: '7:00 - 8:00', totalMinutes: 60, kind: 'after' },
+            { id: 'as-8', title: 'After School • Wind Down for Sleep', time: '8:00 - 9:00', totalMinutes: 60, kind: 'after' }
+        ];
+
+        const DEFAULT_POOL_ITEMS = [
+            // PT & Mobility
+            { id: 'pool-pt-1', category: 'pt', minutes: 10, text: 'Gentle morning range-of-motion PT exercises & hydration', enabled: true },
+            { id: 'pool-pt-2', category: 'pt', minutes: 10, text: 'Prescribed isometric PT set (slow, controlled holds)', enabled: true },
+            { id: 'pool-pt-3', category: 'pt', minutes: 10, text: 'Seated posture resets, shoulder rolls & ankle/wrist pumps', enabled: true },
+            { id: 'pool-pt-4', category: 'pt', minutes: 10, text: 'Slow-paced hallway or room walk (as cleared by PT)', enabled: true },
+            { id: 'pool-pt-5', category: 'pt', minutes: 10, text: 'Mid-day surgical site mobility & gentle stretching routine', enabled: true },
+            { id: 'pool-pt-6', category: 'pt', minutes: 10, text: 'Upper back, neck & chest tension release stretches', enabled: true },
+            { id: 'pool-pt-7', category: 'pt', minutes: 10, text: 'Afternoon endurance PT set (stop before any fatigue)', enabled: true },
+            { id: 'pool-pt-8', category: 'pt', minutes: 10, text: 'Seated circulation exercises & deep diaphragmatic breathing', enabled: true },
+            { id: 'pool-pt-9', category: 'pt', minutes: 10, text: 'Cool-down PT stretches & log daily pain/energy score', enabled: true },
+            { id: 'pool-pt-10', category: 'pt', minutes: 15, text: 'Guided PT balance & gentle core-stability activation', enabled: true },
+            { id: 'pool-pt-11', category: 'pt', minutes: 10, text: 'Wall slides, scapular squeezes & gentle hip-flexor opener', enabled: true },
+
+            // Lesson Prep
+            { id: 'pool-prep-1', category: 'prep', minutes: 10, text: 'Review sub notes & check morning emails from substitute', enabled: true },
+            { id: 'pool-prep-2', category: 'prep', minutes: 10, text: 'Outline top 2 realistic lesson prep priorities for today', enabled: true },
+            { id: 'pool-prep-3', category: 'prep', minutes: 10, text: 'Review and adjust upcoming slide decks or handouts', enabled: true },
+            { id: 'pool-prep-4', category: 'prep', minutes: 10, text: 'Draft warm-up problems or bell-ringers for next week', enabled: true },
+            { id: 'pool-prep-5', category: 'prep', minutes: 10, text: 'Organize digital LMS folders & post upcoming assignments', enabled: true },
+            { id: 'pool-prep-6', category: 'prep', minutes: 10, text: 'Write clear, step-by-step sub instructions for tomorrow', enabled: true },
+            { id: 'pool-prep-7', category: 'prep', minutes: 10, text: 'Curate supplemental videos or reading links for the unit', enabled: true },
+            { id: 'pool-prep-8', category: 'prep', minutes: 10, text: 'Review student progress data & exit tickets from sub', enabled: true },
+            { id: 'pool-prep-9', category: 'prep', minutes: 10, text: 'Outline next unit pacing guide & key checkpoints', enabled: true },
+            { id: 'pool-prep-10', category: 'prep', minutes: 10, text: 'Draft answer keys & quick grading rubrics', enabled: true },
+            { id: 'pool-prep-11', category: 'prep', minutes: 10, text: 'Coordinate with co-teachers or department via email', enabled: true },
+            { id: 'pool-prep-12', category: 'prep', minutes: 10, text: 'Finalize tomorrow’s sub plans & queue print requests', enabled: true },
+            { id: 'pool-prep-13', category: 'prep', minutes: 15, text: 'Build a low-prep review game or partner discussion prompt', enabled: true },
+            { id: 'pool-prep-14', category: 'prep', minutes: 10, text: 'Send quick positive notes or check-in messages to students', enabled: true },
+
+            // Rest & Wellness
+            { id: 'pool-rest-1', category: 'rest', minutes: 15, text: 'Rest, ice/elevate surgical area, and drink full glass of water', enabled: true },
+            { id: 'pool-rest-2', category: 'rest', minutes: 15, text: 'Eyes-closed screen break & light protein snack', enabled: true },
+            { id: 'pool-rest-3', category: 'rest', minutes: 10, text: 'Refill water bottle & reset ergonomic chair/cushion setup', enabled: true },
+            { id: 'pool-rest-4', category: 'rest', minutes: 15, text: 'Reclined rest with therapeutic heat or ice application', enabled: true },
+            { id: 'pool-rest-5', category: 'rest', minutes: 20, text: 'Nutritious, protein-rich lunch completely off-screen', enabled: true },
+            { id: 'pool-rest-6', category: 'rest', minutes: 15, text: 'Quiet mental recharge & afternoon hydration check', enabled: true },
+            { id: 'pool-rest-7', category: 'rest', minutes: 15, text: 'Pack up workspace & transition smoothly to home recovery', enabled: true },
+            { id: 'pool-rest-8', category: 'rest', minutes: 10, text: 'Warm herbal tea break & gentle eye-rest palming exercise', enabled: true },
+            { id: 'pool-rest-9', category: 'rest', minutes: 15, text: 'Legs-elevated power rest with calm instrumental background music', enabled: true },
+
+            // Meditation & CBT
+            { id: 'pool-med-1', category: 'meditation', minutes: 10, text: 'CBT Thought Reframing: Write down one recovery worry and list 2 realistic, compassionate counter-facts', enabled: true },
+            { id: 'pool-med-2', category: 'meditation', minutes: 10, text: '5-4-3-2-1 Sensory Grounding + slow box breathing (4s inhale, 4s hold, 4s exhale, 4s hold)', enabled: true },
+            { id: 'pool-med-3', category: 'meditation', minutes: 10, text: 'CBT "Good Enough" Check: Identify one perfectionist expectation today and consciously lower the bar', enabled: true },
+            { id: 'pool-med-4', category: 'meditation', minutes: 10, text: 'Guided body-scan meditation: Notice areas of tension without judgment and soften shoulders/jaw', enabled: true },
+            { id: 'pool-med-5', category: 'meditation', minutes: 10, text: 'CBT Behavioral Activation Log: Jot down 3 small wins your body or mind accomplished today', enabled: true },
+            { id: 'pool-med-6', category: 'meditation', minutes: 10, text: 'RAIN Mindfulness Practice: Recognize, Allow, Investigate, and Nurture any restlessness or fatigue', enabled: true },
+            { id: 'pool-med-7', category: 'meditation', minutes: 10, text: 'Cognitive Defusion Exercise: Label anxious thoughts as "I am having the thought that..." and let them pass', enabled: true },
+            { id: 'pool-med-8', category: 'meditation', minutes: 10, text: 'Self-Compassion Pause: Speak to yourself as you would a close friend recovering from surgery', enabled: true },
+            { id: 'pool-med-9', category: 'meditation', minutes: 10, text: 'CBT Locus-of-Control Sort: Separate what is in your control today from what belongs to the sub/tomorrow', enabled: true },
+
+            // Fun Ideas (Easy / Tech-Friendly)
+            { id: 'pool-fun-1', category: 'fun', minutes: 10, text: 'Listen to 10 minutes of a favorite comedy, history, or storytelling podcast', enabled: true },
+            { id: 'pool-fun-2', category: 'fun', minutes: 10, text: 'Fall down a fun Wikipedia rabbit hole on a random topic you are curious about', enabled: true },
+            { id: 'pool-fun-3', category: 'fun', minutes: 10, text: 'Play a quick daily word puzzle, Connections, or mini crossword online', enabled: true },
+            { id: 'pool-fun-4', category: 'fun', minutes: 10, text: 'Watch a short travel, cooking, or nature documentary clip on YouTube', enabled: true },
+            { id: 'pool-fun-5', category: 'fun', minutes: 10, text: 'Explore a live webcam (national park, aquarium, or international city street)', enabled: true },
+            { id: 'pool-fun-6', category: 'fun', minutes: 10, text: 'Browse new recipes, books, or dream vacation spots and save favorites', enabled: true },
+            { id: 'pool-fun-7', category: 'fun', minutes: 10, text: 'Queue up an upbeat playlist or relaxing album for the rest of the day', enabled: true },
+            { id: 'pool-fun-8', category: 'fun', minutes: 15, text: 'Listen to an audiobook chapter while resting comfortably', enabled: true },
+            { id: 'pool-fun-9', category: 'fun', minutes: 10, text: 'Take a virtual museum tour or browse Google Arts & Culture highlights', enabled: true },
+
+            // Fun Outings (Gentle Go-and-Do Treats)
+            { id: 'pool-out-1', category: 'outings', minutes: 15, text: 'Go grab a warm cup of coffee or tea from a nearby favorite spot', enabled: true },
+            { id: 'pool-out-2', category: 'outings', minutes: 15, text: 'Take a slow, sunny stroll around the courtyard, garden, or neighborhood block', enabled: true },
+            { id: 'pool-out-3', category: 'outings', minutes: 15, text: 'Pick up a favorite smoothie, pastry, or fresh lunch treat', enabled: true },
+            { id: 'pool-out-4', category: 'outings', minutes: 20, text: 'Browse a local bookstore, library, or plant nursery at an easy pace', enabled: true },
+            { id: 'pool-out-5', category: 'outings', minutes: 15, text: 'Sit outside on a bench or patio to enjoy fresh air and people-watching', enabled: true },
+            { id: 'pool-out-6', category: 'outings', minutes: 15, text: 'Take a short scenic drive with the windows cracked and a good song on', enabled: true },
+            { id: 'pool-out-7', category: 'outings', minutes: 15, text: 'Visit a local bakery or cafe patio to read or journal for a change of scenery', enabled: true }
+        ];
+
+        const MORNING_START_TEMPLATES = {
+            Mon: [
+                { category: 'rest', minutes: 25, text: 'Unrushed, protein-rich breakfast & morning hydration' },
+                { category: 'rest', minutes: 25, text: 'Shower, comfortable recovery-friendly dressing & morning meds' },
+                { category: 'rest', minutes: 25, text: 'Pack water bottle, snacks, ice pack & ease calmly into Monday' }
+            ],
+            Tue: [
+                { category: 'rest', minutes: 25, text: 'Warm breakfast (eggs, oatmeal, or toast) with coffee or herbal tea' },
+                { category: 'rest', minutes: 25, text: 'Gentle morning wash-up, easy-fit outfit & medication check' },
+                { category: 'rest', minutes: 25, text: 'Set up cozy workspace cushions & gather daily essentials' }
+            ],
+            Wed: [
+                { category: 'rest', minutes: 25, text: 'Nutritious mid-week breakfast & full glass of water' },
+                { category: 'rest', minutes: 25, text: 'Freshen up, get dressed at an easy pace & take morning meds' },
+                { category: 'rest', minutes: 25, text: 'Prep lunch/snacks for the day & take a calm 5-minute sit before starting' }
+            ],
+            Thu: [
+                { category: 'rest', minutes: 25, text: 'Slow, nourishing breakfast off-screen' },
+                { category: 'rest', minutes: 25, text: 'Morning shower, comfortable layers & recovery care routine' },
+                { category: 'rest', minutes: 25, text: 'Refill water, grab charger/headphones & get settled for the day' }
+            ],
+            Fri: [
+                { category: 'rest', minutes: 25, text: 'Favorite Friday breakfast & warm morning drink' },
+                { category: 'rest', minutes: 25, text: 'Unhurried getting-ready routine, dressing & medication check' },
+                { category: 'rest', minutes: 25, text: 'Organize bag/desk essentials & start the day with zero rush' }
+            ]
+        };
+
+        /* ==========================================================================
+           2. APPLICATION STATE & PERSISTENCE
+           ========================================================================== */
+        let state = {
+            scheduleType: 'monday',
+            dayTheme: 'Mon',
+            includeAfterSchool: false,
+            activeFilter: 'all',
+            categories: JSON.parse(JSON.stringify(DEFAULT_CATEGORIES)),
+            poolItems: JSON.parse(JSON.stringify(DEFAULT_POOL_ITEMS)),
+            schedules: {}
+        };
+
+        let undoSnapshot = null;
+        let undoTimeout = null;
+        let draggedItem = null;
+
+        let timerSeconds = 600;
+        let timerInterval = null;
+        let soundEnabled = true;
+
+        function generateId(prefix = 'id') {
+            return `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
+        }
+
+        function getCurrentScheduleKey() {
+            return `${state.scheduleType}_${state.dayTheme}`;
+        }
+
+        function getCategoryMeta(catId) {
+            return state.categories.find(c => c.id === catId) || state.categories[0] || {
+                id: 'pt',
+                label: 'PT & Mobility',
+                shortLabel: 'PT',
+                theme: 'teal'
+            };
+        }
+
+        function getThemeClasses(themeName) {
+            return THEME_STYLES[themeName] || THEME_STYLES.slate;
+        }
+
+        function loadState() {
+            try {
+                const raw = localStorage.getItem(STORAGE_KEY);
+                if (raw) {
+                    const parsed = JSON.parse(raw);
+                    state = {
+                        ...state,
+                        ...parsed
+                    };
+
+                    if (!Array.isArray(state.categories) || state.categories.length === 0) {
+                        state.categories = JSON.parse(JSON.stringify(DEFAULT_CATEGORIES));
+                    } else {
+                        DEFAULT_CATEGORIES.forEach(defCat => {
+                            if (!state.categories.some(c => c.id === defCat.id)) {
+                                state.categories.push({ ...defCat });
+                            }
+                        });
+                    }
+
+                    if (!Array.isArray(state.poolItems) || state.poolItems.length === 0) {
+                        state.poolItems = JSON.parse(JSON.stringify(DEFAULT_POOL_ITEMS));
+                    } else {
+                        // Ensure any newly added default pool items are available
+                        DEFAULT_POOL_ITEMS.forEach(defItem => {
+                            if (!state.poolItems.some(i => i.id === defItem.id)) {
+                                state.poolItems.push({ ...defItem });
+                            }
+                        });
+                    }
+
+                    if (!state.schedules || typeof state.schedules !== 'object') {
+                        state.schedules = {};
+                    }
+                }
+            } catch (err) {
+                console.warn('Could not load saved schedule state:', err);
+            }
+        }
+
+        function saveState() {
+            try {
+                localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+            } catch (err) {
+                console.warn('Could not save schedule state:', err);
+            }
+        }
+
+        function pushUndoSnapshot(message) {
+            undoSnapshot = {
+                schedules: JSON.parse(JSON.stringify(state.schedules)),
+                poolItems: JSON.parse(JSON.stringify(state.poolItems)),
+                categories: JSON.parse(JSON.stringify(state.categories))
+            };
+            const toast = document.getElementById('undo-toast');
+            const msgEl = document.getElementById('undo-toast-msg');
+            if (toast && msgEl) {
+                msgEl.textContent = message;
+                toast.classList.remove('hidden');
+                toast.classList.add('flex');
+                clearTimeout(undoTimeout);
+                undoTimeout = setTimeout(() => {
+                    toast.classList.add('hidden');
+                    toast.classList.remove('flex');
+                }, 6000);
+            }
+        }
+
+        function undoLastAction() {
+            if (!undoSnapshot) return;
+            state.schedules = undoSnapshot.schedules;
+            state.poolItems = undoSnapshot.poolItems;
+            state.categories = undoSnapshot.categories;
+            undoSnapshot = null;
+            saveState();
+            renderAll();
+            const toast = document.getElementById('undo-toast');
+            if (toast) {
+                toast.classList.add('hidden');
+                toast.classList.remove('flex');
+            }
+        }
+
+        /* ==========================================================================
+           3. SCHEDULE GENERATION & TASK SELECTION
+           ========================================================================== */
+        function pickRandomFromPool(catId, usedTextsSet, fallbackSeed = 0) {
+            const catMeta = getCategoryMeta(catId);
+            const enabledInCat = state.poolItems.filter(item => item.enabled && item.category === catId);
+            const allInCat = state.poolItems.filter(item => item.category === catId);
+            const sourceList = enabledInCat.length > 0 ? enabledInCat : allInCat;
+
+            if (sourceList.length === 0) {
+                return {
+                    category: catId,
+                    minutes: 10,
+                    text: `10-minute ${catMeta.label} block`
+                };
+            }
+
+            const unused = sourceList.filter(item => !usedTextsSet.has(item.text));
+            const candidates = unused.length > 0 ? unused : sourceList;
+            const chosen = candidates[(Math.floor(Math.random() * candidates.length) + fallbackSeed) % candidates.length];
+            usedTextsSet.add(chosen.text);
+            return chosen;
+        }
+
+        function buildTasksForPeriod(period, existingPinnedTasks = [], usedTextsSet = new Set(), usedCatsAcrossDay = {}) {
+            const tasks = existingPinnedTasks.map(t => ({ ...t }));
+            let remainingMinutes = period.totalMinutes - tasks.reduce((sum, t) => sum + (Number(t.minutes) || 0), 0);
+            if (remainingMinutes <= 0) return tasks;
+
+            // Morning Prep / Before School focuses strictly on eating breakfast and getting ready for the day
+            if (period.kind === 'prep') {
+                const morningTemplates = MORNING_START_TEMPLATES[state.dayTheme] || MORNING_START_TEMPLATES.Mon;
+                morningTemplates.forEach(item => {
+                    if (remainingMinutes >= 10 && !usedTextsSet.has(item.text)) {
+                        const mins = Math.min(item.minutes, remainingMinutes);
+                        tasks.push({
+                            id: generateId('task'),
+                            category: item.category,
+                            minutes: mins,
+                            text: item.text,
+                            completed: false,
+                            pinned: false
+                        });
+                        usedTextsSet.add(item.text);
+                        remainingMinutes -= mins;
+                    }
+                });
+                return tasks;
+            }
+
+            // Active categories (those with at least one enabled item, or all categories as fallback)
+            const activeCats = state.categories.filter(c =>
+                state.poolItems.some(i => i.category === c.id && i.enabled)
+            );
+            const categoryPool = activeCats.length > 0 ? activeCats : state.categories;
+
+            // Breaks and lunches stay gentle/restorative/fun
+            if (period.kind === 'break' || period.kind === 'lunch') {
+                const preferredForBreak = ['rest', 'outings', 'fun', 'meditation', 'pt'];
+                const usedCatsInBreak = new Set(tasks.map(t => t.category));
+
+                while (remainingMinutes >= 10) {
+                    let candidates = categoryPool.filter(c => preferredForBreak.includes(c.id) && !usedCatsInBreak.has(c.id));
+                    if (candidates.length === 0) {
+                        candidates = categoryPool.filter(c => preferredForBreak.includes(c.id));
+                    }
+                    if (candidates.length === 0) candidates = [...categoryPool];
+
+                    const chosenCat = candidates[Math.floor(Math.random() * candidates.length)];
+                    const chosenItem = pickRandomFromPool(chosenCat.id, usedTextsSet);
+                    const blockMins = Math.min(10, remainingMinutes);
+
+                    tasks.push({
+                        id: generateId('task'),
+                        category: chosenCat.id,
+                        minutes: blockMins,
+                        text: chosenItem.text,
+                        completed: false,
+                        pinned: false
+                    });
+                    usedCatsInBreak.add(chosenCat.id);
+                    remainingMinutes -= blockMins;
+                }
+                return tasks;
+            }
+
+            // For all class / block / after-school periods: include EVERY active category in the period
+            const existingCatIds = new Set(tasks.map(t => t.category));
+            const missingCats = categoryPool.filter(c => !existingCatIds.has(c.id));
+
+            // Shuffle order of categories so the flow varies from period to period
+            const shuffledCats = [...missingCats].sort(() => Math.random() - 0.5);
+
+            // Calculate fair duration per task so every category fits inside the period
+            const totalSlotsNeeded = shuffledCats.length;
+            const evenDuration = totalSlotsNeeded > 0
+                ? Math.max(5, Math.floor(remainingMinutes / totalSlotsNeeded))
+                : 10;
+
+            shuffledCats.forEach((cat, idx) => {
+                if (remainingMinutes < 5) return;
+                const chosenItem = pickRandomFromPool(cat.id, usedTextsSet);
+
+                // Give each category an equal share (e.g., ~7-8 min in a 45m period, or ~10-13 min in an 80m block)
+                let blockMins = idx === shuffledCats.length - 1
+                    ? remainingMinutes
+                    : Math.min(evenDuration, remainingMinutes);
+
+                // Cap single blocks cleanly if there are still more categories to place
+                const slotsLeft = shuffledCats.length - idx;
+                if (blockMins * slotsLeft > remainingMinutes) {
+                    blockMins = Math.max(5, Math.floor(remainingMinutes / slotsLeft));
+                }
+
+                tasks.push({
+                    id: generateId('task'),
+                    category: cat.id,
+                    minutes: blockMins,
+                    text: chosenItem.text,
+                    completed: false,
+                    pinned: false
+                });
+
+                usedCatsAcrossDay[cat.id] = (usedCatsAcrossDay[cat.id] || 0) + 1;
+                remainingMinutes -= blockMins;
+            });
+
+            return tasks;
+        }
+
+        function ensureSchedulePopulated(schedKey, forceRebuildAll = false) {
+            if (!state.schedules[schedKey] || forceRebuildAll) {
+                state.schedules[schedKey] = {};
+            }
+
+            const allPeriods = [
+                ...BELL_SCHEDULES.monday.periods,
+                ...BELL_SCHEDULES.aday.periods,
+                ...BELL_SCHEDULES.bday.periods,
+                ...AFTER_SCHOOL_PERIODS
+            ];
+
+            const usedTexts = new Set();
+            const usedCatsAcrossDay = {};
+            allPeriods.forEach(period => {
+                if (!state.schedules[schedKey][period.id] || state.schedules[schedKey][period.id].length === 0) {
+                    state.schedules[schedKey][period.id] = buildTasksForPeriod(period, [], usedTexts, usedCatsAcrossDay);
+                }
+            });
+        }
+
+        function getActivePeriodsList() {
+            const base = BELL_SCHEDULES[state.scheduleType]?.periods || BELL_SCHEDULES.monday.periods;
+            return state.includeAfterSchool ? [...base, ...AFTER_SCHOOL_PERIODS] : [...base];
+        }
+
+        function shuffleUnpinned() {
+            pushUndoSnapshot('Shuffled unpinned activities.');
+            const schedKey = getCurrentScheduleKey();
+            const periods = getActivePeriodsList();
+            const usedTexts = new Set();
+            const usedCatsAcrossDay = {};
+
+            // Record already pinned texts and category counts so we avoid duplicates and maximize variety
+            periods.forEach(p => {
+                const existing = state.schedules[schedKey]?.[p.id] || [];
+                existing.filter(t => t.pinned).forEach(t => {
+                    usedTexts.add(t.text);
+                    usedCatsAcrossDay[t.category] = (usedCatsAcrossDay[t.category] || 0) + 1;
+                });
+            });
+
+            periods.forEach(p => {
+                const existing = state.schedules[schedKey]?.[p.id] || [];
+                const pinnedTasks = existing.filter(t => t.pinned);
+                state.schedules[schedKey][p.id] = buildTasksForPeriod(p, pinnedTasks, usedTexts, usedCatsAcrossDay);
+            });
+
+            saveState();
+            renderSchedule();
+            renderProgress();
+        }
+
+        /* ==========================================================================
+           4. SCHEDULE & TASK MUTATIONS
+           ========================================================================== */
+        function selectScheduleType(type) {
+            state.scheduleType = type;
+            ensureSchedulePopulated(getCurrentScheduleKey());
+            saveState();
+            renderAll();
+        }
+
+        function selectDayTheme(day) {
+            state.dayTheme = day;
+            ensureSchedulePopulated(getCurrentScheduleKey());
+            saveState();
+            renderAll();
+        }
+
+        function toggleAfterSchool() {
+            const cb = document.getElementById('after-school-toggle');
+            state.includeAfterSchool = Boolean(cb && cb.checked);
+            ensureSchedulePopulated(getCurrentScheduleKey());
+            saveState();
+            renderSchedule();
+            renderProgress();
+        }
+
+        function setFilter(filterVal) {
+            state.activeFilter = filterVal;
+            saveState();
+            renderFilters();
+            renderSchedule();
+        }
+
+        function toggleTaskCompleted(periodId, taskId) {
+            const schedKey = getCurrentScheduleKey();
+            const list = state.schedules[schedKey]?.[periodId];
+            if (!list) return;
+            const task = list.find(t => t.id === taskId);
+            if (task) {
+                task.completed = !task.completed;
+                saveState();
+                renderSchedule();
+                renderProgress();
+            }
+        }
+
+        function toggleTaskPinned(periodId, taskId) {
+            const schedKey = getCurrentScheduleKey();
+            const list = state.schedules[schedKey]?.[periodId];
+            if (!list) return;
+            const task = list.find(t => t.id === taskId);
+            if (task) {
+                task.pinned = !task.pinned;
+                saveState();
+                renderSchedule();
+            }
+        }
+
+        function swapSingleTask(periodId, taskId) {
+            const schedKey = getCurrentScheduleKey();
+            const list = state.schedules[schedKey]?.[periodId];
+            if (!list) return;
+            const task = list.find(t => t.id === taskId);
+            if (!task) return;
+
+            const usedTexts = new Set(list.map(t => t.text));
+            const replacement = pickRandomFromPool(task.category, usedTexts, Math.floor(Math.random() * 13));
+            task.text = replacement.text;
+            task.minutes = replacement.minutes || task.minutes;
+            task.completed = false;
+            saveState();
+            renderSchedule();
+            renderProgress();
+        }
+
+        function deleteTask(periodId, taskId) {
+            const schedKey = getCurrentScheduleKey();
+            const list = state.schedules[schedKey]?.[periodId];
+            if (!list) return;
+            pushUndoSnapshot('Task removed.');
+            state.schedules[schedKey][periodId] = list.filter(t => t.id !== taskId);
+            saveState();
+            renderSchedule();
+            renderProgress();
+        }
+
+        function moveTaskStep(periodId, taskId, direction) {
+            const schedKey = getCurrentScheduleKey();
+            const list = state.schedules[schedKey]?.[periodId];
+            if (!list) return;
+            const idx = list.findIndex(t => t.id === taskId);
+            if (idx === -1) return;
+            const targetIdx = idx + direction;
+            if (targetIdx < 0 || targetIdx >= list.length) return;
+            const [item] = list.splice(idx, 1);
+            list.splice(targetIdx, 0, item);
+            saveState();
+            renderSchedule();
+        }
+
+        function handleAddTaskToPeriod(event, periodId) {
+            event.preventDefault();
+            const textInput = document.getElementById(`add-text-${periodId}`);
+            const catSelect = document.getElementById(`add-cat-${periodId}`);
+            const minsInput = document.getElementById(`add-mins-${periodId}`);
+            if (!textInput || !textInput.value.trim()) return;
+
+            const schedKey = getCurrentScheduleKey();
+            if (!state.schedules[schedKey][periodId]) {
+                state.schedules[schedKey][periodId] = [];
+            }
+
+            state.schedules[schedKey][periodId].push({
+                id: generateId('task'),
+                category: catSelect ? catSelect.value : 'pt',
+                minutes: Math.max(5, Math.min(90, Number(minsInput?.value) || 10)),
+                text: textInput.value.trim(),
+                completed: false,
+                pinned: true
+            });
+
+            textInput.value = '';
+            saveState();
+            renderSchedule();
+            renderProgress();
+        }
+
+        function editTaskInline(periodId, taskId) {
+            const schedKey = getCurrentScheduleKey();
+            const list = state.schedules[schedKey]?.[periodId];
+            if (!list) return;
+            const task = list.find(t => t.id === taskId);
+            if (!task) return;
+
+            const rowEl = document.getElementById(`task-row-${taskId}`);
+            if (!rowEl) return;
+
+            const catOptions = state.categories.map(c =>
+                `<option value="${c.id}" ${c.id === task.category ? 'selected' : ''}>${escapeHtml(c.shortLabel || c.label)}</option>`
+            ).join('');
+
+            rowEl.innerHTML = `
+                <form onsubmit="saveInlineTaskEdit(event, '${periodId}', '${taskId}')" class="w-full flex flex-col sm:flex-row items-stretch sm:items-center gap-2 py-1">
+                    <select id="edit-cat-${taskId}" class="text-xs font-semibold bg-white border border-slate-300 rounded-lg px-2 py-1.5">
+                        ${catOptions}
+                    </select>
+                    <div class="flex items-center gap-1 bg-white border border-slate-300 rounded-lg px-2 py-1">
+                        <input type="number" id="edit-mins-${taskId}" value="${task.minutes}" min="5" max="90" step="5" class="w-11 text-xs font-bold text-center focus:outline-none">
+                        <span class="text-[11px] text-slate-500">m</span>
+                    </div>
+                    <input type="text" id="edit-text-${taskId}" value="${escapeHtml(task.text)}" class="flex-1 text-xs bg-white border border-slate-300 rounded-lg px-2.5 py-1.5 focus:outline-none focus:ring-2 focus:ring-sage-500">
+                    <div class="flex items-center gap-1.5 justify-end">
+                        <button type="submit" class="px-2.5 py-1 rounded-lg text-xs font-semibold bg-sage-600 text-white hover:bg-sage-700">Save</button>
+                        <button type="button" onclick="renderSchedule()" class="px-2.5 py-1 rounded-lg text-xs font-medium bg-slate-100 text-slate-600 hover:bg-slate-200">Cancel</button>
+                    </div>
+                </form>
+            `;
+            const input = document.getElementById(`edit-text-${taskId}`);
+            if (input) {
+                input.focus();
+                input.select();
+            }
+        }
+
+        function saveInlineTaskEdit(event, periodId, taskId) {
+            event.preventDefault();
+            const schedKey = getCurrentScheduleKey();
+            const list = state.schedules[schedKey]?.[periodId];
+            if (!list) return;
+            const task = list.find(t => t.id === taskId);
+            if (!task) return;
+
+            const newText = document.getElementById(`edit-text-${taskId}`)?.value.trim();
+            const newCat = document.getElementById(`edit-cat-${taskId}`)?.value;
+            const newMins = Number(document.getElementById(`edit-mins-${taskId}`)?.value);
+
+            if (newText) task.text = newText;
+            if (newCat) task.category = newCat;
+            if (newMins >= 5) task.minutes = newMins;
+
+            saveState();
+            renderSchedule();
+            renderProgress();
+        }
+
+        /* ==========================================================================
+           5. DRAG & DROP HANDLERS
+           ========================================================================== */
+        function handleDragStart(event, periodId, taskId) {
+            draggedItem = { periodId, taskId };
+            event.dataTransfer.effectAllowed = 'move';
+            event.dataTransfer.setData('text/plain', JSON.stringify(draggedItem));
+            const row = document.getElementById(`task-row-${taskId}`);
+            if (row) row.classList.add('task-item-dragging');
+        }
+
+        function handleDragEnd(taskId) {
+            draggedItem = null;
+            const row = document.getElementById(`task-row-${taskId}`);
+            if (row) row.classList.remove('task-item-dragging');
+            document.querySelectorAll('.task-drop-before, .task-drop-after, .period-drop-highlight').forEach(el => {
+                el.classList.remove('task-drop-before', 'task-drop-after', 'period-drop-highlight');
+            });
+        }
+
+        function handleTaskDragOver(event, targetTaskId) {
+            event.preventDefault();
+            if (!draggedItem || draggedItem.taskId === targetTaskId) return;
+            const row = document.getElementById(`task-row-${targetTaskId}`);
+            if (!row) return;
+            const rect = row.getBoundingClientRect();
+            const isTopHalf = event.clientY < rect.top + rect.height / 2;
+            row.classList.toggle('task-drop-before', isTopHalf);
+            row.classList.toggle('task-drop-after', !isTopHalf);
+        }
+
+        function handleTaskDragLeave(targetTaskId) {
+            const row = document.getElementById(`task-row-${targetTaskId}`);
+            if (row) row.classList.remove('task-drop-before', 'task-drop-after');
+        }
+
+        function handleDropOnTask(event, targetPeriodId, targetTaskId) {
+            event.preventDefault();
+            event.stopPropagation();
+            if (!draggedItem || draggedItem.taskId === targetTaskId) return;
+
+            const schedKey = getCurrentScheduleKey();
+            const sourceList = state.schedules[schedKey]?.[draggedItem.periodId];
+            const targetList = state.schedules[schedKey]?.[targetPeriodId];
+            if (!sourceList || !targetList) return;
+
+            const sourceIdx = sourceList.findIndex(t => t.id === draggedItem.taskId);
+            if (sourceIdx === -1) return;
+
+            pushUndoSnapshot('Moved activity.');
+            const [movedTask] = sourceList.splice(sourceIdx, 1);
+
+            const targetRow = document.getElementById(`task-row-${targetTaskId}`);
+            let insertBefore = true;
+            if (targetRow) {
+                const rect = targetRow.getBoundingClientRect();
+                insertBefore = event.clientY < rect.top + rect.height / 2;
+            }
+
+            const targetIdx = targetList.findIndex(t => t.id === targetTaskId);
+            if (targetIdx === -1) {
+                targetList.push(movedTask);
+            } else {
+                targetList.splice(insertBefore ? targetIdx : targetIdx + 1, 0, movedTask);
+            }
+
+            draggedItem = null;
+            saveState();
+            renderSchedule();
+            renderProgress();
+        }
+
+        function handlePeriodDragOver(event, periodId) {
+            event.preventDefault();
+            const card = document.getElementById(`period-card-${periodId}`);
+            if (card) card.classList.add('period-drop-highlight');
+        }
+
+        function handlePeriodDragLeave(periodId) {
+            const card = document.getElementById(`period-card-${periodId}`);
+            if (card) card.classList.remove('period-drop-highlight');
+        }
+
+        function handleDropOnPeriod(event, targetPeriodId) {
+            event.preventDefault();
+            const card = document.getElementById(`period-card-${targetPeriodId}`);
+            if (card) card.classList.remove('period-drop-highlight');
+            if (!draggedItem) return;
+
+            const schedKey = getCurrentScheduleKey();
+            const sourceList = state.schedules[schedKey]?.[draggedItem.periodId];
+            const targetList = state.schedules[schedKey]?.[targetPeriodId];
+            if (!sourceList || !targetList) return;
+
+            const sourceIdx = sourceList.findIndex(t => t.id === draggedItem.taskId);
+            if (sourceIdx === -1) return;
+
+            pushUndoSnapshot('Moved activity to period.');
+            const [movedTask] = sourceList.splice(sourceIdx, 1);
+            targetList.push(movedTask);
+
+            draggedItem = null;
+            saveState();
+            renderSchedule();
+            renderProgress();
+        }
+
+        /* ==========================================================================
+           6. CATEGORY & POOL DRAWER MANAGEMENT
+           ========================================================================== */
+        function togglePoolDrawer() {
+            const drawer = document.getElementById('pool-drawer');
+            if (!drawer) return;
+            drawer.classList.toggle('hidden');
+            if (!drawer.classList.contains('hidden')) {
+                renderPoolDrawer();
+            }
+        }
+
+        function handleAddCategory(event) {
+            event.preventDefault();
+            const nameInput = document.getElementById('new-category-name');
+            const themeSelect = document.getElementById('new-category-theme');
+            if (!nameInput || !nameInput.value.trim()) return;
+
+            const label = nameInput.value.trim();
+            const id = 'cat-' + label.toLowerCase().replace(/[^a-z0-9]+/g, '-') + '-' + Math.random().toString(36).slice(2, 5);
+            state.categories.push({
+                id,
+                label,
+                shortLabel: label,
+                theme: themeSelect ? themeSelect.value : 'purple',
+                builtIn: false
+            });
+
+            nameInput.value = '';
+            saveState();
+            renderAll();
+        }
+
+        function deleteCustomCategory(catId) {
+            const cat = state.categories.find(c => c.id === catId);
+            if (!cat || cat.builtIn) return;
+            pushUndoSnapshot(`Removed category "${cat.label}".`);
+            state.categories = state.categories.filter(c => c.id !== catId);
+            state.poolItems = state.poolItems.filter(item => item.category !== catId);
+            if (state.activeFilter === catId) state.activeFilter = 'all';
+            saveState();
+            renderAll();
+        }
+
+        function handleAddPoolOption(event) {
+            event.preventDefault();
+            const catSelect = document.getElementById('pool-new-cat');
+            const minsInput = document.getElementById('pool-new-mins');
+            const textInput = document.getElementById('pool-new-text');
+            if (!textInput || !textInput.value.trim()) return;
+
+            const category = catSelect ? catSelect.value : 'pt';
+            const minutes = Math.max(5, Math.min(60, Number(minsInput?.value) || 10));
+            const entries = textInput.value.split(/[;\n,]+/).map(s => s.trim()).filter(Boolean);
+
+            entries.forEach(entry => {
+                state.poolItems.unshift({
+                    id: generateId('pool'),
+                    category,
+                    minutes,
+                    text: entry,
+                    enabled: true
+                });
+            });
+
+            textInput.value = '';
+            saveState();
+            renderPoolDrawer();
+        }
+
+        function togglePoolItemEnabled(poolId) {
+            const item = state.poolItems.find(i => i.id === poolId);
+            if (item) {
+                item.enabled = !item.enabled;
+                saveState();
+                renderPoolDrawer();
+            }
+        }
+
+        function toggleCategoryPoolAll(catId, enableState) {
+            state.poolItems.forEach(item => {
+                if (item.category === catId) {
+                    item.enabled = enableState;
+                }
+            });
+            saveState();
+            renderPoolDrawer();
+        }
+
+        function deletePoolItem(poolId) {
+            pushUndoSnapshot('Removed pool option.');
+            state.poolItems = state.poolItems.filter(i => i.id !== poolId);
+            saveState();
+            renderPoolDrawer();
+        }
+
+        /* ==========================================================================
+           7. PACING TIMER & AUDIO CHIME
+           ========================================================================== */
+        function formatTime(secs) {
+            const m = Math.floor(secs / 60);
+            const s = secs % 60;
+            return `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+        }
+
+        function updateTimerDisplay() {
+            const el = document.getElementById('timer-display');
+            if (el) el.textContent = formatTime(timerSeconds);
+        }
+
+        function setTimerMinutes(mins, autoStart = false) {
+            clearInterval(timerInterval);
+            timerInterval = null;
+            timerSeconds = (Number(mins) || 10) * 60;
+            updateTimerDisplay();
+            const btn = document.getElementById('timer-toggle-btn');
+            if (btn) btn.textContent = 'Start';
+            if (autoStart) toggleTimer();
+        }
+
+        function toggleTimer() {
+            const btn = document.getElementById('timer-toggle-btn');
+            if (timerInterval) {
+                clearInterval(timerInterval);
+                timerInterval = null;
+                if (btn) btn.textContent = 'Resume';
+            } else {
+                if (timerSeconds <= 0) timerSeconds = 600;
+                if (btn) btn.textContent = 'Pause';
+                timerInterval = setInterval(() => {
+                    timerSeconds--;
+                    updateTimerDisplay();
+                    if (timerSeconds <= 0) {
+                        clearInterval(timerInterval);
+                        timerInterval = null;
+                        if (btn) btn.textContent = 'Start';
+                        playGentleChime();
+                    }
+                }, 1000);
+            }
+        }
+
+        function resetTimer() {
+            setTimerMinutes(10, false);
+        }
+
+        function toggleSound() {
+            soundEnabled = !soundEnabled;
+            document.getElementById('sound-on-icon')?.classList.toggle('hidden', !soundEnabled);
+            document.getElementById('sound-off-icon')?.classList.toggle('hidden', soundEnabled);
+        }
+
+        function playGentleChime() {
+            if (!soundEnabled) return;
+            try {
+                const ctx = new (window.AudioContext || window.webkitAudioContext)();
+                const notes = [523.25, 659.25, 783.99];
+                notes.forEach((freq, idx) => {
+                    const osc = ctx.createOscillator();
+                    const gain = ctx.createGain();
+                    osc.type = 'sine';
+                    osc.frequency.setValueAtTime(freq, ctx.currentTime + idx * 0.22);
+                    gain.gain.setValueAtTime(0.001, ctx.currentTime + idx * 0.22);
+                    gain.gain.exponentialRampToValueAtTime(0.12, ctx.currentTime + idx * 0.22 + 0.05);
+                    gain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + idx * 0.22 + 0.9);
+                    osc.connect(gain);
+                    gain.connect(ctx.destination);
+                    osc.start(ctx.currentTime + idx * 0.22);
+                    osc.stop(ctx.currentTime + idx * 0.22 + 0.95);
+                });
+            } catch (e) {
+                console.warn('Audio chime unavailable:', e);
+            }
+        }
+
+        /* ==========================================================================
+           8. RESET MODAL & BLANK PRINT ACTIONS
+           ========================================================================== */
+        function printBlankSchedule() {
+            const container = document.getElementById('schedule-container');
+            const printTitle = document.getElementById('print-title');
+            const printSubtitle = document.getElementById('print-subtitle');
+            if (!container) return;
+
+            const schedInfo = BELL_SCHEDULES[state.scheduleType] || BELL_SCHEDULES.monday;
+            const periods = getActivePeriodsList();
+
+            if (printTitle) {
+                printTitle.textContent = `Recovery Bell Schedule — ${schedInfo.name} (${state.dayTheme}) • Blank Template`;
+            }
+            if (printSubtitle) {
+                printSubtitle.textContent = 'Write-In 10-Minute Blocks • PT, Lesson Prep, Wellness & Breaks';
+            }
+
+            // Temporarily render clean write-in checkbox rows for every period without touching saved state
+            container.innerHTML = periods.map(period => {
+                const slotCount = period.kind === 'break'
+                    ? 2
+                    : period.kind === 'lunch'
+                        ? 3
+                        : period.kind === 'block'
+                            ? 6
+                            : 4;
+
+                const blankRows = Array.from({ length: slotCount }, () => `
+                    <li class="px-3.5 py-2.5 flex items-center gap-2.5">
+                        <span class="recovery-checkbox inline-block shrink-0"></span>
+                        <span class="text-[11px] font-semibold text-slate-400 shrink-0">[ ___ min ]</span>
+                        <div class="flex-1 border-b border-slate-300 h-4"></div>
+                    </li>
+                `).join('');
+
+                return `
+                    <article class="period-card bg-white rounded-2xl border border-slate-200/90 flex flex-col justify-between overflow-hidden">
+                        <div>
+                            <div class="period-header px-4 py-3 bg-slate-50/90 border-b border-slate-200/80 flex items-center justify-between gap-2">
+                                <div>
+                                    <h2 class="text-sm font-bold text-slate-900">${escapeHtml(period.title)}</h2>
+                                    <p class="text-xs font-medium text-slate-500">${escapeHtml(period.time)}</p>
+                                </div>
+                                <span class="text-xs font-semibold px-2.5 py-1 rounded-full border bg-white text-slate-600 border-slate-200">
+                                    ${period.totalMinutes} min total
+                                </span>
+                            </div>
+                            <ul class="task-list divide-y divide-slate-100">
+                                ${blankRows}
+                            </ul>
+                        </div>
+                    </article>
+                `;
+            }).join('');
+
+            const restoreAfterPrint = () => {
+                window.removeEventListener('afterprint', restoreAfterPrint);
+                renderHeaderState();
+                renderSchedule();
+            };
+            window.addEventListener('afterprint', restoreAfterPrint);
+
+            setTimeout(() => {
+                window.print();
+                // Fallback restore in case afterprint does not fire in certain embedded viewers
+                setTimeout(() => {
+                    renderHeaderState();
+                    renderSchedule();
+                }, 1000);
+            }, 50);
+        }
+
+        function openResetModal() {
+            const modal = document.getElementById('reset-modal');
+            if (modal) {
+                modal.classList.remove('hidden');
+                modal.classList.add('flex');
+            }
+        }
+
+        function closeResetModal() {
+            const modal = document.getElementById('reset-modal');
+            if (modal) {
+                modal.classList.add('hidden');
+                modal.classList.remove('flex');
+            }
+        }
+
+        function clearCheckmarksOnly() {
+            const schedKey = getCurrentScheduleKey();
+            const schedObj = state.schedules[schedKey];
+            if (schedObj) {
+                Object.values(schedObj).forEach(list => {
+                    list.forEach(t => { t.completed = false; });
+                });
+            }
+            saveState();
+            closeResetModal();
+            renderSchedule();
+            renderProgress();
+        }
+
+        function resetCurrentScheduleDefaults() {
+            pushUndoSnapshot('Restored default schedule tasks.');
+            const schedKey = getCurrentScheduleKey();
+            ensureSchedulePopulated(schedKey, true);
+            saveState();
+            closeResetModal();
+            renderSchedule();
+            renderProgress();
+        }
+
+        /* ==========================================================================
+           9. UI RENDERING
+           ========================================================================== */
+        function escapeHtml(str) {
+            return String(str)
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#39;');
+        }
+
+        function renderHeaderState() {
+            const schedInfo = BELL_SCHEDULES[state.scheduleType] || BELL_SCHEDULES.monday;
+            const badge = document.getElementById('active-badge-summary');
+            if (badge) badge.textContent = `${schedInfo.name} • ${state.dayTheme}`;
+
+            const printTitle = document.getElementById('print-title');
+            if (printTitle) printTitle.textContent = `Recovery Bell Schedule — ${schedInfo.name} (${state.dayTheme})`;
+
+            ['monday', 'aday', 'bday'].forEach(key => {
+                const btn = document.getElementById(`sched-btn-${key}`);
+                if (!btn) return;
+                const active = state.scheduleType === key;
+                btn.className = `sched-btn px-3 py-1 rounded-lg text-xs font-semibold transition ${
+                    active ? 'bg-white text-sage-800 shadow-xs' : 'text-slate-600 hover:text-slate-900'
+                }`;
+            });
+
+            ['Mon', 'Tue', 'Wed', 'Thu', 'Fri'].forEach(day => {
+                const btn = document.getElementById(`day-btn-${day}`);
+                if (!btn) return;
+                const active = state.dayTheme === day;
+                btn.className = `day-btn px-2 py-0.5 rounded-lg text-xs font-semibold transition ${
+                    active ? 'bg-white text-sage-800 shadow-xs' : 'text-slate-600 hover:text-slate-900'
+                }`;
+            });
+
+            const afterCb = document.getElementById('after-school-toggle');
+            if (afterCb) afterCb.checked = Boolean(state.includeAfterSchool);
+        }
+
+        function renderFilters() {
+            const container = document.getElementById('filter-pills-container');
+            if (!container) return;
+
+            const allActive = state.activeFilter === 'all';
+            let html = `
+                <button type="button" onclick="setFilter('all')" class="px-3 py-1 rounded-full text-xs font-semibold border transition ${
+                    allActive ? 'bg-slate-800 text-white border-slate-800' : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'
+                }">
+                    All Tasks
+                </button>
+            `;
+
+            state.categories.forEach(cat => {
+                const theme = getThemeClasses(cat.theme);
+                const isActive = state.activeFilter === cat.id;
+                html += `
+                    <button type="button" onclick="setFilter('${cat.id}')" class="px-3 py-1 rounded-full text-xs font-semibold border transition ${
+                        isActive ? theme.pillActive : theme.pillIdle
+                    }">
+                        ${escapeHtml(cat.label)}
+                    </button>
+                `;
+            });
+
+            container.innerHTML = html;
+        }
+
+        function renderPoolDrawer() {
+            const pillsContainer = document.getElementById('category-pills-container');
+            const catSelect = document.getElementById('pool-new-cat');
+            const grid = document.getElementById('pool-columns-grid');
+            if (!pillsContainer || !catSelect || !grid) return;
+
+            pillsContainer.innerHTML = state.categories.map(cat => {
+                const theme = getThemeClasses(cat.theme);
+                return `
+                    <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold border ${theme.badge}">
+                        ${escapeHtml(cat.label)}
+                        ${!cat.builtIn ? `
+                            <button type="button" onclick="deleteCustomCategory('${cat.id}')" class="hover:text-rose-700 font-bold ml-0.5" title="Delete Category">&times;</button>
+                        ` : ''}
+                    </span>
+                `;
+            }).join('');
+
+            catSelect.innerHTML = state.categories.map(cat =>
+                `<option value="${cat.id}">${escapeHtml(cat.label)}</option>`
+            ).join('');
+
+            grid.innerHTML = state.categories.map(cat => {
+                const theme = getThemeClasses(cat.theme);
+                const items = state.poolItems.filter(i => i.category === cat.id);
+                const enabledCount = items.filter(i => i.enabled).length;
+
+                return `
+                    <div class="bg-slate-50 rounded-2xl border border-slate-200 p-3 flex flex-col">
+                        <div class="flex items-center justify-between gap-2 pb-2 border-b border-slate-200/80">
+                            <div>
+                                <span class="text-xs font-bold ${theme.accent}">${escapeHtml(cat.label)}</span>
+                                <span class="text-[11px] text-slate-400 ml-1">(${enabledCount}/${items.length} active)</span>
+                            </div>
+                            <div class="flex items-center gap-1 text-[11px]">
+                                <button type="button" onclick="toggleCategoryPoolAll('${cat.id}', true)" class="text-sage-700 hover:underline font-medium">All</button>
+                                <span class="text-slate-300">|</span>
+                                <button type="button" onclick="toggleCategoryPoolAll('${cat.id}', false)" class="text-slate-500 hover:underline font-medium">None</button>
+                            </div>
+                        </div>
+                        <div class="mt-2 space-y-1.5 max-h-52 overflow-y-auto pr-1">
+                            ${items.length === 0 ? `<p class="text-xs text-slate-400 italic py-2">No options in this category yet.</p>` : ''}
+                            ${items.map(item => `
+                                <div class="flex items-start justify-between gap-2 bg-white p-2 rounded-xl border border-slate-200/70 text-xs">
+                                    <label class="flex items-start gap-2 cursor-pointer flex-1">
+                                        <input type="checkbox" ${item.enabled ? 'checked' : ''} onchange="togglePoolItemEnabled('${item.id}')" class="mt-0.5 rounded border-slate-300 text-sage-600 focus:ring-sage-500">
+                                        <span class="${item.enabled ? 'text-slate-700' : 'text-slate-400 line-through'} leading-snug">
+                                            <strong class="text-slate-500">${item.minutes}m:</strong> ${escapeHtml(item.text)}
+                                        </span>
+                                    </label>
+                                    <button type="button" onclick="deletePoolItem('${item.id}')" class="text-slate-300 hover:text-rose-600 px-1" title="Remove from pool">&times;</button>
+                                </div>
+                            `).join('')}
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function renderSchedule() {
+            const container = document.getElementById('schedule-container');
+            if (!container) return;
+
+            const schedKey = getCurrentScheduleKey();
+            ensureSchedulePopulated(schedKey);
+            const periods = getActivePeriodsList();
+
+            const catOptionsHtml = state.categories.map(c =>
+                `<option value="${c.id}">${escapeHtml(c.shortLabel || c.label)}</option>`
+            ).join('');
+
+            container.innerHTML = periods.map(period => {
+                const allTasks = state.schedules[schedKey]?.[period.id] || [];
+                const allocatedMins = allTasks.reduce((sum, t) => sum + (Number(t.minutes) || 0), 0);
+                const visibleTasks = state.activeFilter === 'all'
+                    ? allTasks
+                    : allTasks.filter(t => t.category === state.activeFilter);
+
+                const isOverTime = allocatedMins > period.totalMinutes;
+                const timeBadgeClass = isOverTime
+                    ? 'bg-rose-50 text-rose-700 border-rose-200'
+                    : 'bg-white text-slate-600 border-slate-200';
+
+                return `
+                    <article id="period-card-${period.id}"
+                             ondragover="handlePeriodDragOver(event, '${period.id}')"
+                             ondragleave="handlePeriodDragLeave('${period.id}')"
+                             ondrop="handleDropOnPeriod(event, '${period.id}')"
+                             class="period-card bg-white rounded-2xl border border-slate-200/90 shadow-sm flex flex-col justify-between overflow-hidden transition">
+                        <div>
+                            <!-- Period Card Header -->
+                            <div class="period-header px-4 py-3 bg-slate-50/90 border-b border-slate-200/80 flex items-center justify-between gap-2">
+                                <div>
+                                    <h2 class="text-sm font-bold text-slate-900">${escapeHtml(period.title)}</h2>
+                                    <p class="text-xs font-medium text-slate-500">${escapeHtml(period.time)}</p>
+                                </div>
+                                <span class="text-xs font-semibold px-2.5 py-1 rounded-full border ${timeBadgeClass}" title="Allocated minutes vs total period duration">
+                                    ${allocatedMins} / ${period.totalMinutes} min
+                                </span>
+                            </div>
+
+                            <!-- Tasks List -->
+                            <ul class="task-list divide-y divide-slate-100">
+                                ${visibleTasks.length === 0 ? `
+                                    <li class="px-4 py-4 text-xs text-slate-400 italic text-center">
+                                        No tasks matching this filter in ${escapeHtml(period.title)}.
+                                    </li>
+                                ` : ''}
+                                ${visibleTasks.map((task, idx) => {
+                                    const catMeta = getCategoryMeta(task.category);
+                                    const theme = getThemeClasses(catMeta.theme);
+                                    return `
+                                        <li id="task-row-${task.id}"
+                                            draggable="true"
+                                            ondragstart="handleDragStart(event, '${period.id}', '${task.id}')"
+                                            ondragend="handleDragEnd('${task.id}')"
+                                            ondragover="handleTaskDragOver(event, '${task.id}')"
+                                            ondragleave="handleTaskDragLeave('${task.id}')"
+                                            ondrop="handleDropOnTask(event, '${period.id}', '${task.id}')"
+                                            class="group px-3.5 py-2.5 flex items-start gap-2.5 hover:bg-slate-50/80 transition ${task.completed ? 'bg-sage-50/30' : ''}">
+                                            <!-- Drag Handle -->
+                                            <span class="mt-1 cursor-grab active:cursor-grabbing text-slate-300 hover:text-slate-500 no-print select-none" title="Drag to reorder or move to another period">
+                                                <svg class="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 16 16">
+                                                    <path d="M5 3a1.25 1.25 0 110 2.5A1.25 1.25 0 015 3zm6 0a1.25 1.25 0 110 2.5A1.25 1.25 0 0111 3zM5 6.75a1.25 1.25 0 110 2.5 1.25 1.25 0 010-2.5zm6 0a1.25 1.25 0 110 2.5 1.25 1.25 0 010-2.5zM5 10.5A1.25 1.25 0 115 13a1.25 1.25 0 010-2.5zm6 0a1.25 1.25 0 110 2.5 1.25 1.25 0 010-2.5z"/>
+                                                </svg>
+                                            </span>
+
+                                            <!-- Checkbox -->
+                                            <input type="checkbox"
+                                                   ${task.completed ? 'checked' : ''}
+                                                   onchange="toggleTaskCompleted('${period.id}', '${task.id}')"
+                                                   class="recovery-checkbox mt-0.5"
+                                                   aria-label="Mark task completed">
+
+                                            <!-- Task Text & Meta -->
+                                            <div class="flex-1 min-w-0">
+                                                <div class="flex flex-wrap items-center gap-1.5 mb-0.5">
+                                                    <span class="cat-badge inline-flex items-center px-2 py-0.5 rounded-md text-[11px] font-semibold border ${theme.badge}">
+                                                        ${escapeHtml(catMeta.shortLabel || catMeta.label)}
+                                                    </span>
+                                                    <span class="text-[11px] font-bold text-slate-500">${task.minutes} min</span>
+                                                    ${task.pinned ? `
+                                                        <span class="text-[10px] font-semibold text-sage-700 bg-sage-100 px-1.5 py-0.5 rounded no-print">Kept</span>
+                                                    ` : ''}
+                                                </div>
+                                                <p onclick="editTaskInline('${period.id}', '${task.id}')"
+                                                   title="Click to edit text or duration"
+                                                   class="task-label text-xs sm:text-[13px] leading-snug cursor-pointer ${task.completed ? 'line-through text-slate-400' : 'text-slate-700'}">
+                                                    ${escapeHtml(task.text)}
+                                                </p>
+                                            </div>
+
+                                            <!-- Row Action Buttons -->
+                                            <div class="flex items-center gap-0.5 shrink-0 opacity-85 sm:opacity-60 group-hover:opacity-100 transition no-print">
+                                                <button type="button" onclick="setTimerMinutes(${task.minutes}, true)" class="p-1 rounded-lg text-slate-400 hover:text-sage-700 hover:bg-sage-50" title="Start ${task.minutes}m Pacing Timer">
+                                                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                                                        <path stroke-linecap="round" stroke-linejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                                                    </svg>
+                                                </button>
+                                                <button type="button" onclick="toggleTaskPinned('${period.id}', '${task.id}')" class="p-1 rounded-lg ${task.pinned ? 'text-sage-700 bg-sage-100' : 'text-slate-400 hover:text-sage-700 hover:bg-sage-50'}" title="${task.pinned ? 'Unpin task' : 'Keep / Pin task during shuffles'}">
+                                                    <svg class="w-3.5 h-3.5" fill="${task.pinned ? 'currentColor' : 'none'}" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                                                        <path stroke-linecap="round" stroke-linejoin="round" d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z"/>
+                                                    </svg>
+                                                </button>
+                                                <button type="button" onclick="swapSingleTask('${period.id}', '${task.id}')" class="p-1 rounded-lg text-slate-400 hover:text-amber-700 hover:bg-amber-50" title="Swap for another idea in this category">
+                                                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                                                        <path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
+                                                    </svg>
+                                                </button>
+                                                <button type="button" onclick="moveTaskStep('${period.id}', '${task.id}', -1)" ${idx === 0 ? 'disabled' : ''} class="p-1 rounded-lg text-slate-400 hover:text-slate-700 disabled:opacity-25" title="Move up">
+                                                    <svg class="w-3 h-3" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24">
+                                                        <path stroke-linecap="round" stroke-linejoin="round" d="M5 15l7-7 7 7"/>
+                                                    </svg>
+                                                </button>
+                                                <button type="button" onclick="moveTaskStep('${period.id}', '${task.id}', 1)" ${idx === visibleTasks.length - 1 ? 'disabled' : ''} class="p-1 rounded-lg text-slate-400 hover:text-slate-700 disabled:opacity-25" title="Move down">
+                                                    <svg class="w-3 h-3" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24">
+                                                        <path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"/>
+                                                    </svg>
+                                                </button>
+                                                <button type="button" onclick="deleteTask('${period.id}', '${task.id}')" class="p-1 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50" title="Remove task">
+                                                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                                                        <path stroke-linecap="round" stroke-linejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
+                                                    </svg>
+                                                </button>
+                                            </div>
+                                        </li>
+                                    `;
+                                }).join('')}
+                            </ul>
+                        </div>
+
+                        <!-- Inline Add Custom Activity Bar -->
+                        <form onsubmit="handleAddTaskToPeriod(event, '${period.id}')" class="px-3.5 py-2 bg-slate-50/70 border-t border-slate-100 flex items-center gap-1.5 no-print">
+                            <select id="add-cat-${period.id}" class="text-[11px] font-semibold bg-white border border-slate-200 rounded-lg px-2 py-1 text-slate-700 focus:outline-none focus:ring-1 focus:ring-sage-500 max-w-[110px]">
+                                ${catOptionsHtml}
+                            </select>
+                            <input type="number" id="add-mins-${period.id}" value="10" min="5" max="90" step="5" class="w-11 text-[11px] font-bold text-center bg-white border border-slate-200 rounded-lg py-1 focus:outline-none focus:ring-1 focus:ring-sage-500" title="Minutes">
+                            <input type="text" id="add-text-${period.id}" placeholder="+ Type custom activity..." class="flex-1 min-w-0 text-xs bg-white border border-slate-200 rounded-lg px-2.5 py-1 focus:outline-none focus:ring-1 focus:ring-sage-500">
+                            <button type="submit" class="px-2.5 py-1 rounded-lg text-xs font-semibold bg-sage-600 text-white hover:bg-sage-700 transition shrink-0">
+                                Add
+                            </button>
+                        </form>
+                    </article>
+                `;
+            }).join('');
+        }
+
+        function renderProgress() {
+            const schedKey = getCurrentScheduleKey();
+            const periods = getActivePeriodsList();
+            let total = 0;
+            let done = 0;
+
+            periods.forEach(p => {
+                const list = state.schedules[schedKey]?.[p.id] || [];
+                total += list.length;
+                done += list.filter(t => t.completed).length;
+            });
+
+            const pct = total > 0 ? Math.round((done / total) * 100) : 0;
+            const textEl = document.getElementById('progress-text');
+            const barEl = document.getElementById('progress-bar');
+            if (textEl) textEl.textContent = `${done} of ${total} tasks (${pct}%)`;
+            if (barEl) barEl.style.width = `${pct}%`;
+        }
+
+        function renderAll() {
+            renderHeaderState();
+            renderFilters();
+            renderPoolDrawer();
+            renderSchedule();
+            renderProgress();
+        }
+
+        /* ==========================================================================
+           10. INITIALIZATION
+           ========================================================================== */
+        window.addEventListener('DOMContentLoaded', () => {
+            loadState();
+            ensureSchedulePopulated(getCurrentScheduleKey());
+            updateTimerDisplay();
+            renderAll();
+        });
+    </script>
+</body>
+</html>
